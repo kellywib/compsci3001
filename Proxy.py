@@ -150,12 +150,13 @@ while True:
       # originServerRequest is the first line in the request and
       # originServerRequestHeader is the second line in the request
       # ~~~~ INSERT CODE ~~~~
+      
       if '/' in resource:
-        path = '/' + resource.split('/', 1)[-1]
-      else:
-        path = '/'
-      originServerRequest = method + ' ' + path + ' HTTP/1.1'
-      originServerRequestHeader = 'Host: ' + hostname
+        path = '/' + resource.split('/', 1)[-1] #extracts the path part after hostname of the URI
+      else:                                     #I only realised after testing and reading the protocols that the origin server should only receive the path in the request line.
+        path = '/' #If there is no path given, this default back to root ('/'), ensuring valid requests are sent even for the base domain URLs.
+      originServerRequest = method + ' ' + path + ' HTTP/1.1' #Originally I was sending the full absolute URI (e.g. http://host/path), which caused HTTP/0.9 errors.
+      originServerRequestHeader = 'Host: ' + hostname #Sets the host header as required by HTTP/1.1. Without this header, some of the servers returned malformed responses.
       # ~~~~ END CODE INSERT ~~~~
 
       # Construct the request to send to the origin server
@@ -176,28 +177,31 @@ while True:
 
       # Get the response from the origin server
       # ~~~~ INSERT CODE ~~~~
-      response = b'' #Initialises an empty byte string to hold a complete response. 
+      response = b'' #Initialises an empty byte string to hold a complete HTTP response. 
+                     # Especially for larger payloads, I learnt that the recv() might not return a full response in one go. 
       while True:
-        chunk = originServerSocket.recv(BUFFER_SIZE)
-        if not chunk: 
+        chunk = originServerSocket.recv(BUFFER_SIZE) # A chunk of the response fron the origin server is received.
+        if not chunk: # If there is an empty chunk, this signals that the server has closed the connection
           break
-        response += chunk #adds each chunk to the full response
+        response += chunk #Adds each chunk to the full response. I learnt that this is necessary to eliminate and avoid issues with incomplete data sent to the cache or client.
 
-      status_line = response.decode(errors='ignore').split('\r\n')[0]
+      status_line = response.decode(errors='ignore').split('\r\n')[0] #Extracts status line from decoding the response, which helps determne the specific HTTP response code.
       print('HTTP status:', status_line)
 
-      cache_allowed = False
+      cache_allowed = False #
+      #Determines caching logic based on the HTTP status codes:
       if '200' in status_line or '301' in status_line:
-        cache_allowed = True #usually safe to cache : 200 OK and 301 Moved Permanently 
-      elif '302' in status_line:
+        cache_allowed = True #I learned from HTTP/1.1 spec (RFC 2616) that these are usually safe to cache : 200 OK and 301 Moved Permanently 
+      elif '302' in status_line: #The temporary redirects are not typically cached to make sure there are fresh responses
         print('302 Found: Response is a temporary redirect, it will not be cached')
 
       headers_block = response.decode(errors='ignore').split('\r\n\r\n')[0] #Get the HTTP headers by splitting the rsponse before the body
 
-      cache_control_match = re.search(r'Cache-Control:. *max-age= (\d+)', headers_block)
+      cache_control_match = re.search(r'Cache-Control:. *max-age= (\d+)', headers_block) #Finds cache-control header using regex and looks for max-age value. 
+      #I had a lot of trouble initially extracting this. However, I realised I needed to account for case sensitivity and spacing issues. 
       if cache_control_match:
         max_age = int(cache_control_match.group(1)) #Converts max=age to an integer value
-        print(f'Cache-Control max-age found:{max_age} seconds')
+        print(f'Cache-Control max-age found:{max_age} seconds') #This helped me ensure that I respect the caching instructions provided by the server.
       # ~~~~ END CODE INSERT ~~~~
 
       # Send the response to the client
