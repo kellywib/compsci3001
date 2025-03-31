@@ -150,8 +150,12 @@ while True:
       # originServerRequest is the first line in the request and
       # originServerRequestHeader is the second line in the request
       # ~~~~ INSERT CODE ~~~~
-      originServerRequest = method + ' ' + resource + ' ' + version #Builds the HTTP request line to the original server, for example: "GET/index.html HTTP/1.1"
-      originServerRequestHeader = 'Host: ' + hostname #Builds the host header required by HTTP/1.1 to speciy the target server.
+      if '/' in resource:
+        path = '/' + resource.split('/', 1)[-1]
+      else:
+        path = '/'
+      originServerRequest = method + ' ' + path + ' HTTP/1.1'
+      originServerRequestHeader = 'Host: ' + hostname
       # ~~~~ END CODE INSERT ~~~~
 
       # Construct the request to send to the origin server
@@ -172,7 +176,28 @@ while True:
 
       # Get the response from the origin server
       # ~~~~ INSERT CODE ~~~~
-      response = originServerSocket.recv(BUFFER_SIZE) #Reads up to the BUFFER_SIZe bytes of data from the origin server and stores it in the response variable. 
+      response = b'' #Initialises an empty byte string to hold a complete response. 
+      while True:
+        chunk = originServerSocket.recv(BUFFER_SIZE)
+        if not chunk: 
+          break
+        response += chunk #adds each chunk to the full response
+
+      status_line = response.decode(errors='ignore').split('\r\n')[0]
+      print('HTTP status:', status_line)
+
+      cache_allowed = False
+      if '200' in status_line or '301' in status_line:
+        cache_allowed = True #usually safe to cache : 200 OK and 301 Moved Permanently 
+      elif '302' in status_line:
+        print('302 Found: Response is a temporary redirect, it will not be cached')
+
+      headers_block = response.decode(errors='ignore').split('\r\n\r\n')[0] #Get the HTTP headers by splitting the rsponse before the body
+
+      cache_control_match = re.search(r'Cache-Control:. *max-age= (\d+)', headers_block)
+      if cache_control_match:
+        max_age = int(cache_control_match.group(1)) #Converts max=age to an integer value
+        print(f'Cache-Control max-age found:{max_age} seconds')
       # ~~~~ END CODE INSERT ~~~~
 
       # Send the response to the client

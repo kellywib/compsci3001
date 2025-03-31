@@ -1,0 +1,10 @@
+HTTP/1.1 302 FOUND
+Date: Sun, 30 Mar 2025 23:19:01 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 0
+Connection: keep-alive
+Server: gunicorn/19.9.0
+Location: http://http.badssl.com
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Credentials: true
+
