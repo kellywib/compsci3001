@@ -61,8 +61,8 @@ static struct pkt buffer[WINDOWSIZE];  /* array for storing packets waiting for 
 static int windowfirst, windowlast;    /* array indexes of the first/last packet awaiting ACK */
 static int windowcount;                /* the number of packets currently awaiting an ACK */
 static int A_nextseqnum;               /* the next sequence number to be used by the sender */
-static bool acked[SEQSPACE];            // REMEMBER TO WRITE COMMENT 
-static float timer_start[SEQSPACE];     // REMEMBER TO WRITE COMMENT 
+static bool acked[SEQSPACE];            // Tracks whether each packet with a given seqnum has been acknowledged
+static float timer_start[SEQSPACE];     // Placeholder to track when each packet's timer started (not used in current code)
 
 /* called from layer 5 (application layer), passed the message to be sent to other side */
 void A_output(struct msg message)
@@ -88,7 +88,7 @@ void A_output(struct msg message)
     buffer[windowlast] = sendpkt;
     windowcount++;
 
-    acked[sendpkt.seqnum] = false; //REMEMBER TO WRITE UR COMMENT
+    acked[sendpkt.seqnum] = false; //Mark packet as not yet acknowledged (needed for Selective Repeat tracking)
 
     /* send out packet */
     if (TRACE > 0)
